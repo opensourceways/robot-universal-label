@@ -22,6 +22,9 @@ import (
 // configuration holds a list of repoConfig configurations.
 type configuration struct {
 	ConfigItems []repoConfig `json:"config_items,omitempty"`
+	// SquashCommitLabel Specify the label whose PR exceeds the threshold. default: stat/needs-squash
+	SquashCommitLabel     string `json:"squash_commit_label,omitempty"`
+	CommentCommandTrigger string `json:"comment_command_trigger"`
 }
 
 // Validate to check the configmap data's validation, returns an error if invalid
@@ -96,7 +99,4 @@ type SquashConfig struct {
 	// and add the label specified by SquashCommitLabel to the PR if this value is exceeded.
 	// zero means no check.
 	CommitsThreshold uint `json:"commits_threshold,omitempty"`
-
-	// SquashCommitLabel Specify the label whose PR exceeds the threshold. default: stat/needs-squash
-	SquashCommitLabel string `json:"squash_commit_label,omitempty"`
 }

@@ -13,16 +13,19 @@
 // limitations under the License.
 package main
 
-import "regexp"
+import (
+	"github.com/opensourceways/robot-framework-lib/utils"
+	"regexp"
+)
 
 var (
-	regexpCommentByAnyoneToAddLabel  = regexp.MustCompile(`(?m)^/(kind|priority|sig|good)\s*(.*?)\s*$`)
-	regexpCommentByAnyoneRemoveLabel = regexp.MustCompile(`(?m)^/remove-(kind|priority|sig|good)\s*(.*?)\s*$`)
+	regexpCommentByAnyoneToAddLabel  = regexp.MustCompile(`(?m)^/(kind|priority|sig|good)[\t ]+[A-Za-z0-9_-]+$`)
+	regexpCommentByAnyoneRemoveLabel = regexp.MustCompile(`(?m)^/remove-(kind|priority|sig|good)[\t ]+[A-Za-z0-9_-]+$`)
 )
 
 func getMatchedLabels(comment *string) ([]string, []string) {
-	return parseLabels(comment, commonLabelRegex),
-		parseLabels(comment, removeCommonLabelRegex)
+	return matchLabelFromCommentLine(utils.GetString(comment), regexpCommentByAnyoneToAddLabel),
+		matchLabelFromCommentLine(utils.GetString(comment), regexpCommentByAnyoneRemoveLabel)
 }
 
 func matchLabelFromCommentLine(comment string, reg *regexp.Regexp) []string {
