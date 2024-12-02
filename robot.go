@@ -99,6 +99,6 @@ func (bot *robot) handleCommentEvent(evt *client.GenericEvent, cnf config.Config
 
 	prLabels, _ := bot.cli.GetPullRequestLabels(org, repo, number)
 	prLabelSet := sets.New[string](prLabels...)
-	bot.addLabels(org, repo, number, commenter, prLabelSet.Intersection(sets.New[string](addLabels...)).UnsortedList())
+	bot.addLabels(org, repo, number, commenter, sets.New[string](addLabels...).Difference(prLabelSet).UnsortedList())
 	bot.removeLabels(org, repo, number, commenter, prLabelSet.Intersection(sets.New[string](removeLabels...)).UnsortedList())
 }

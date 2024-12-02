@@ -21,87 +21,229 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockClient struct {
+type mockClient struct {
 	mock.Mock
-	success bool
-	method  string
-	commits []client.PRCommit
-	labels  []string
+	successfulCreatePRComment                bool
+	successfulAddPRLabels                    bool
+	successfulRemovePRLabels                 bool
+	successfulCheckIfPRCreateEvent           bool
+	successfulCheckIfPRSourceCodeUpdateEvent bool
+	successfulGetPullRequestCommits          bool
+	successfulGetPullRequestLabels           bool
+	method                                   string
+	commits                                  []client.PRCommit
+	labels                                   []string
 }
 
-func (m *MockClient) CreatePRComment(org, repo, number, comment string) bool {
+func (m *mockClient) CreatePRComment(org, repo, number, comment string) bool {
 	m.method = "CreatePRComment"
-	return m.success
+	return m.successfulCreatePRComment
 }
 
-func (m *MockClient) AddPRLabels(org, repo, number string, labels []string) bool {
+func (m *mockClient) AddPRLabels(org, repo, number string, labels []string) bool {
 	m.method = "AddPRLabels"
-	return m.success
+	return m.successfulAddPRLabels
 }
 
-func (m *MockClient) RemovePRLabels(org, repo, number string, labels []string) bool {
+func (m *mockClient) RemovePRLabels(org, repo, number string, labels []string) bool {
 	m.method = "RemovePRLabels"
-	return m.success
+	return m.successfulRemovePRLabels
 }
 
-func (m *MockClient) CheckIfPRCreateEvent(evt *client.GenericEvent) bool {
+func (m *mockClient) CheckIfPRCreateEvent(evt *client.GenericEvent) bool {
 	m.method = "CheckIfPRCreateEvent"
-	return m.success
+	return m.successfulCheckIfPRCreateEvent
 }
 
-func (m *MockClient) CheckIfPRSourceCodeUpdateEvent(evt *client.GenericEvent) bool {
+func (m *mockClient) CheckIfPRSourceCodeUpdateEvent(evt *client.GenericEvent) bool {
 	m.method = "CheckIfPRSourceCodeUpdateEvent"
-	return m.success
+	return m.successfulCheckIfPRSourceCodeUpdateEvent
 }
 
-func (m *MockClient) GetPullRequestCommits(org, repo, number string) ([]client.PRCommit, bool) {
+func (m *mockClient) GetPullRequestCommits(org, repo, number string) ([]client.PRCommit, bool) {
 	m.method = "GetPullRequestCommits"
-	return m.commits, m.success
+	return m.commits, m.successfulGetPullRequestCommits
 }
 
-func (m *MockClient) GetPullRequestLabels(org, repo, number string) ([]string, bool) {
+func (m *mockClient) GetPullRequestLabels(org, repo, number string) ([]string, bool) {
 	m.method = "GetPullRequestLabels"
-	return m.labels, m.success
+	return m.labels, m.successfulGetPullRequestLabels
 }
 
-func (m *MockClient) Value() (success bool, method string, commits []client.PRCommit, labels []string) {
-	return m.success, m.method, m.commits, m.labels
-}
-
-func (m *MockClient) Set(success bool, method string, commits []client.PRCommit, labels []string) {
-	m.success = success
-	m.method = method
-	m.commits = commits
-	m.labels = labels
-}
+const (
+	org       = "org1"
+	repo      = "repo1"
+	number    = "1"
+	commenter = "commenter1"
+	label     = "label1"
+)
 
 func TestRemoveLabels(t *testing.T) {
 
-	mockClient := new(MockClient)
-	bot := &robot{cli: mockClient, cnf: &configuration{
+	mc := new(mockClient)
+	bot := &robot{cli: mc, cnf: &configuration{
 		CommentUpdateLabelFailed: "%s, 1123, %s",
 	}}
 
-	cli, ok := bot.cli.(*MockClient)
+	cli, ok := bot.cli.(*mockClient)
 	assert.Equal(t, true, ok)
 	case1 := "No labels to remove"
 	cli.method = case1
 	// No labels to remove
-	bot.removeLabels("org", "repo", "number", "commenter", []string{})
+	bot.removeLabels(org, repo, number, commenter, []string{})
 	assert.Equal(t, case1, cli.method)
 
 	case2 := "RemovePRLabels"
 	cli.method = case2
-	cli.success = true
+	cli.successfulRemovePRLabels = true
 	// Successfully remove labels
-	bot.removeLabels("org", "repo", "number", "commenter", []string{"label1"})
+	bot.removeLabels(org, repo, number, commenter, []string{label})
 	assert.Equal(t, case2, cli.method)
 
 	case3 := "CreatePRComment"
 	cli.method = case3
-	cli.success = false
+	cli.successfulRemovePRLabels = false
 	// Failed to remove labels
-	bot.removeLabels("org", "repo", "number", "commenter", []string{"label1"})
+	bot.removeLabels(org, repo, number, commenter, []string{label})
 	assert.Equal(t, case3, cli.method)
 
+}
+
+func TestAddLabels(t *testing.T) {
+
+	mc := new(mockClient)
+	bot := &robot{cli: mc, cnf: &configuration{
+		CommentUpdateLabelFailed: "%s, 1123, %s",
+	}}
+
+	cli, ok := bot.cli.(*mockClient)
+	assert.Equal(t, true, ok)
+	case1 := "No labels to add"
+	cli.method = case1
+	// No labels to add
+	bot.addLabels(org, repo, number, commenter, []string{})
+	assert.Equal(t, case1, cli.method)
+
+	case2 := "AddPRLabels"
+	cli.method = case2
+	cli.successfulAddPRLabels = true
+	// Successfully add labels
+	bot.addLabels(org, repo, number, commenter, []string{label})
+	assert.Equal(t, case2, cli.method)
+
+	case3 := "CreatePRComment"
+	cli.method = case3
+	cli.successfulAddPRLabels = false
+	// Failed to add labels
+	bot.addLabels(org, repo, number, commenter, []string{label})
+	assert.Equal(t, case3, cli.method)
+
+}
+
+func TestClearLabelWhenPRSourceCodeUpdated(t *testing.T) {
+
+	mc := new(mockClient)
+	bot := &robot{cli: mc, cnf: &configuration{
+		CommentRemoveLabelsWhenPRSourceCodeUpdated: "1123, %s",
+	}}
+
+	cli, ok := bot.cli.(*mockClient)
+	assert.Equal(t, true, ok)
+	case1 := "CheckIfPRSourceCodeUpdateEvent"
+	cli.method = case1
+	cli.successfulCheckIfPRSourceCodeUpdateEvent = false
+	cnf := &repoConfig{}
+	// Not a pull request source code update event
+	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, cnf, &client.GenericEvent{})
+	assert.Equal(t, case1, cli.method)
+
+	cli.successfulCheckIfPRSourceCodeUpdateEvent = true
+	// No labels to clear
+	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, cnf, &client.GenericEvent{})
+	assert.Equal(t, case1, cli.method)
+
+	cnf.ClearLabels = []string{label}
+	case3 := "GetPullRequestLabels"
+	cli.method = case3
+	cli.successfulGetPullRequestLabels = false
+	// there is no labels in the PR
+	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, cnf, &client.GenericEvent{})
+	assert.Equal(t, case3, cli.method)
+
+	cli.successfulGetPullRequestLabels = true
+	cli.labels = []string{label + "1"}
+	// there is no intersection between cleared labels and PR's labels
+	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, cnf, &client.GenericEvent{})
+	assert.Equal(t, case3, cli.method)
+
+	cli.labels = []string{label}
+	case5 := "RemovePRLabels"
+	cli.method = case5
+	cli.successfulRemovePRLabels = false
+	// there is a intersection between cleared labels and PR's labels
+	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, cnf, &client.GenericEvent{})
+	assert.Equal(t, case5, cli.method)
+
+	cli.successfulRemovePRLabels = true
+	case6 := "CreatePRComment"
+	cli.method = case6
+	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, cnf, &client.GenericEvent{})
+	assert.Equal(t, case6, cli.method)
+}
+
+func TestHandleSquashLabel(t *testing.T) {
+	mc := new(mockClient)
+	bot := &robot{cli: mc, cnf: &configuration{}}
+
+	cli, ok := bot.cli.(*mockClient)
+	assert.Equal(t, true, ok)
+	case1 := "CreatePRComment"
+	cli.method = case1
+	cli.successfulGetPullRequestCommits = false
+	cnf := &repoConfig{}
+	// The PR has no commits
+	bot.handleSquashLabel(org, repo, number, cnf)
+	assert.Equal(t, case1, cli.method)
+
+	case2 := "GetPullRequestCommits"
+	cli.method = case2
+	cli.successfulGetPullRequestCommits = true
+	cnf.UnableCheckingSquash = true
+	// the PR squash check is disable
+	bot.handleSquashLabel(org, repo, number, cnf)
+	assert.Equal(t, case2, cli.method)
+
+	cnf.UnableCheckingSquash = false
+	case3 := "GetPullRequestLabels"
+	cli.method = case3
+	cli.commits = []client.PRCommit{
+		{
+			AuthorName: "user1",
+		},
+		{
+			AuthorName: "user2",
+		},
+	}
+	cnf.CommitsThreshold = 1
+	bot.cnf.SquashCommitLabel = "squash"
+	cli.successfulGetPullRequestLabels = true
+	cli.labels = []string{bot.cnf.SquashCommitLabel}
+	// the PR squash check is able, commits number is larger than threshold, but PR's labels already contains squash label
+	bot.handleSquashLabel(org, repo, number, cnf)
+	assert.Equal(t, case3, cli.method)
+
+	case4 := "AddPRLabels"
+	cli.method = case4
+	// the PR squash check is able, commits number is larger than threshold, but PR's labels not contains squash label
+	cli.labels = []string{"sig/aaa"}
+	bot.handleSquashLabel(org, repo, number, cnf)
+	assert.Equal(t, case4, cli.method)
+
+	case5 := "RemovePRLabels"
+	cli.method = case5
+	cnf.CommitsThreshold = 2
+	// the PR squash check is able, commits number is within than threshold, but PR's labels contains squash label
+	cli.labels = []string{bot.cnf.SquashCommitLabel}
+	bot.handleSquashLabel(org, repo, number, cnf)
+	assert.Equal(t, case5, cli.method)
 }
