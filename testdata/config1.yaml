@@ -1,0 +1,4 @@
+config_items:
+  - repos:
+    commits_threshold: 2
+

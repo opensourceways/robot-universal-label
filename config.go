@@ -23,8 +23,13 @@ import (
 type configuration struct {
 	ConfigItems []repoConfig `json:"config_items,omitempty"`
 	// SquashCommitLabel Specify the label whose PR exceeds the threshold. default: stat/needs-squash
-	SquashCommitLabel     string `json:"squash_commit_label,omitempty"`
-	CommentCommandTrigger string `json:"comment_command_trigger"`
+	SquashCommitLabel                          string `json:"squash_commit_label,omitempty"`
+	UserMarkFormat                             string `json:"user_mark_format"`
+	PlaceholderCommenter                       string `json:"placeholder_commenter"`
+	CommentCommandTrigger                      string `json:"comment_command_trigger"`
+	CommentRemoveLabelsWhenPRSourceCodeUpdated string `json:"comment_remove_labels_when_pr_source_code_updated"`
+	CommentLabelCommandConflict                string `json:"comment_label_command_conflict"`
+	CommentUpdateLabelFailed                   string `json:"comment_update_label_failed"`
 }
 
 // Validate to check the configmap data's validation, returns an error if invalid
@@ -39,14 +44,19 @@ func (c *configuration) Validate() error {
 		if err := items[i].validate(); err != nil {
 			return err
 		}
+
+		// Set the Default value, if it is not explicit in the config
+		if items[i].CommitsThreshold == 0 {
+			items[i].CommitsThreshold = 1
+		}
 	}
 
 	return nil
 }
 
-// get retrieves a repoConfig for a given organization and repository.
+// getRepoConfig retrieves a repoConfig for a given organization and repository.
 // Returns the repoConfig if found, otherwise returns nil.
-func (c *configuration) get(org, repo string) *repoConfig {
+func (c *configuration) getRepoConfig(org, repo string) *repoConfig {
 	if c == nil || len(c.ConfigItems) == 0 {
 		return nil
 	}
@@ -97,6 +107,5 @@ type SquashConfig struct {
 
 	// CommitsThreshold Check the threshold of the number of PR commits,
 	// and add the label specified by SquashCommitLabel to the PR if this value is exceeded.
-	// zero means no check.
 	CommitsThreshold uint `json:"commits_threshold,omitempty"`
 }

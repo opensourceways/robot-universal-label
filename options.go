@@ -85,6 +85,7 @@ func (o *robotOptions) gatherOptions(fs *flag.FlagSet, args ...string) (*configu
 		//commentSomeNeedSign = cnf.CommentSomeNeedSign
 		//placeholderCommitter = cnf.PlaceholderCommitter
 		//placeholderCLASignGuideTitle = cnf.PlaceholderCLASignGuideTitle
+
 	}
 
 	return cnf, token

@@ -14,35 +14,20 @@
 package main
 
 import (
+	"fmt"
 	"github.com/opensourceways/robot-framework-lib/client"
 	"github.com/opensourceways/robot-framework-lib/config"
 	"github.com/opensourceways/robot-framework-lib/framework"
 	"github.com/opensourceways/robot-framework-lib/utils"
 	"github.com/sirupsen/logrus"
-	"net/url"
-	"regexp"
-	"slices"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"strings"
 )
 
 // iClient is an interface that defines methods for client-side interactions
 type iClient interface {
 	// CreatePRComment creates a comment for a pull request in a specified organization and repository
 	CreatePRComment(org, repo, number, comment string) (success bool)
-	// CreateIssueComment creates a comment for an issue in a specified organization and repository
-	CreateIssueComment(org, repo, number, comment string) (success bool)
-	// CheckPermission checks the permission of a user for a specified repository
-	CheckPermission(org, repo, username string) (pass, success bool)
-	// UpdateIssue updates the state of an issue in a specified organization and repository
-	UpdateIssue(org, repo, number, state string) (success bool)
-	// UpdatePR updates the state of a pull request in a specified organization and repository
-	UpdatePR(org, repo, number, state string) (success bool)
-	// GetIssueLinkedPRNumber retrieves the number of a pull request linked to a specified issue
-	GetIssueLinkedPRNumber(org, repo, number string) (num int, success bool)
-
-	CreateRepoIssueLabel(org, repo, name, color string) (success bool)
-	DeleteRepoIssueLabel(org, repo, name string) (success bool)
-	AddIssueLabels(org, repo, number string, labels []string) (success bool)
-	RemoveIssueLabels(org, repo, number string, labels []string) (success bool)
 	AddPRLabels(org, repo, number string, labels []string) (success bool)
 	RemovePRLabels(org, repo, number string, labels []string) (success bool)
 	CheckIfPRCreateEvent(evt *client.GenericEvent) (yes bool)
@@ -76,38 +61,9 @@ func (bot *robot) GetLogger() *logrus.Entry {
 	return bot.log
 }
 
-var (
-	// the value from configuration.EventStateOpened
-	eventStateOpened = "opened"
-	// the value from configuration.EventStateClosed
-	eventStateClosed = "closed"
-	// the value from configuration.CommentNoPermissionOperateIssue
-	commentNoPermissionOperateIssue = ""
-	// the value from configuration.CommentIssueNeedsLinkPR
-	commentIssueNeedsLinkPR = ""
-	// the value from configuration.CommentListLinkingPullRequestsFailure
-	commentListLinkingPullRequestsFailure = ""
-	// the value from configuration.CommentNoPermissionOperatePR
-	commentNoPermissionOperatePR = ""
-)
-
-const (
-	// placeholderCommenter is a placeholder string for the commenter's name
-	placeholderCommenter = "__commenter__"
-	// placeholderAction is a placeholder string for the action
-	placeholderAction = "__action__"
-)
-
-var (
-	// regexpReopenComment is a compiled regular expression for reopening comments
-	regexpReopenComment = regexp.MustCompile(`(?mi)^/reopen\s*$`)
-	// regexpCloseComment is a compiled regular expression for closing comments
-	regexpCloseComment = regexp.MustCompile(`(?mi)^/close\s*$`)
-)
-
 func (bot *robot) handlePullRequestEvent(evt *client.GenericEvent, cnf config.Configmap, logger *logrus.Entry) {
 	org, repo, number := utils.GetString(evt.Org), utils.GetString(evt.Repo), utils.GetString(evt.Number)
-	repoCnf := bot.cnf.get(org, repo)
+	repoCnf := bot.cnf.getRepoConfig(org, repo)
 	// If the specified repository not match any repository  in the repoConfig list, it logs the warning and returns
 	if repoCnf == nil {
 		logger.Warningf("no config for the repo: " + org + "/" + repo)
@@ -120,34 +76,29 @@ func (bot *robot) handlePullRequestEvent(evt *client.GenericEvent, cnf config.Co
 	}
 
 	bot.handleSquashLabel(org, repo, number, repoCnf)
-}
-
-func (bot *robot) handleSquashLabel(org, repo, number string, repoCnf *repoConfig) {
-	commits, success := bot.cli.GetPullRequestCommits(org, repo, number)
-	if !success {
-		bot.cli.CreatePRComment(org, repo, number, bot.cnf.CommentCommandTrigger)
-		return
-	}
-
-	if repoCnf.UnableCheckingSquash == false {
-		prLabels, _ := bot.cli.GetPullRequestLabels(org, repo, number)
-		if uint(len(commits)) > repoCnf.CommitsThreshold && !slices.Contains(prLabels, bot.cnf.SquashCommitLabel) {
-			bot.cli.AddPRLabels(org, repo, number, []string{bot.cnf.SquashCommitLabel})
-		}
-
-		if uint(len(commits)) <= repoCnf.CommitsThreshold && slices.Contains(prLabels, bot.cnf.SquashCommitLabel) {
-			bot.cli.RemovePRLabels(org, repo, number, []string{url.QueryEscape(bot.cnf.SquashCommitLabel)})
-		}
-	}
+	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, repoCnf, evt)
 }
 
 func (bot *robot) handleCommentEvent(evt *client.GenericEvent, cnf config.Configmap, logger *logrus.Entry) {
 	org, repo, number := utils.GetString(evt.Org), utils.GetString(evt.Repo), utils.GetString(evt.Number)
-	repoCnf := bot.cnf.get(org, repo)
+	repoCnf := bot.cnf.getRepoConfig(org, repo)
 	// If the specified repository not match any repository  in the repoConfig list, it logs the warning and returns
 	if repoCnf == nil {
 		logger.Warningf("no config for the repo: " + org + "/" + repo)
 		return
 	}
 
+	commenter := utils.GetString(evt.Commenter)
+	commenter = strings.ReplaceAll(bot.cnf.UserMarkFormat, bot.cnf.PlaceholderCommenter, commenter)
+	addLabels, removeLabels := matchLabels(utils.GetString(evt.Comment))
+	if conflict, conflictLabels := checkIntersection(addLabels, removeLabels); conflict {
+		comment := fmt.Sprintf(bot.cnf.CommentLabelCommandConflict, commenter, conflictLabels)
+		bot.cli.CreatePRComment(org, repo, number, comment)
+		return
+	}
+
+	prLabels, _ := bot.cli.GetPullRequestLabels(org, repo, number)
+	prLabelSet := sets.New[string](prLabels...)
+	bot.addLabels(org, repo, number, commenter, prLabelSet.Intersection(sets.New[string](addLabels...)).UnsortedList())
+	bot.removeLabels(org, repo, number, commenter, prLabelSet.Intersection(sets.New[string](removeLabels...)).UnsortedList())
 }
