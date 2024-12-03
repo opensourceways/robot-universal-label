@@ -47,13 +47,19 @@ func (bot *robot) clearLabelWhenPRSourceCodeUpdated(org, repo, number string, re
 	}
 
 	clearLabelSet := sets.New[string](repoCnf.ClearLabels...)
-	if clearLabelSet.Len() == 0 {
+	if clearLabelSet.Len() == 0 && repoCnf.clearLabelsByRegexp == nil {
 		return
 	}
 
 	prLabels, _ := bot.cli.GetPullRequestLabels(org, repo, number)
 	if len(prLabels) == 0 {
 		return
+	}
+
+	for _, l := range prLabels {
+		if repoCnf.clearLabelsByRegexp != nil && repoCnf.clearLabelsByRegexp.MatchString(l) {
+			clearLabelSet.Insert(l)
+		}
 	}
 
 	prLabelSet := sets.New[string](prLabels...)

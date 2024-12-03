@@ -16,20 +16,22 @@ package main
 import (
 	"errors"
 	"github.com/opensourceways/server-common-lib/config"
+	"reflect"
 	"regexp"
+	"strings"
 )
 
-// configuration holds a list of repoConfig configurations.
+// configuration holds a list of repoConfig configurations and .
 type configuration struct {
 	ConfigItems []repoConfig `json:"config_items,omitempty"`
 	// SquashCommitLabel Specify the label whose PR exceeds the threshold. default: stat/needs-squash
-	SquashCommitLabel                          string `json:"squash_commit_label,omitempty"`
-	UserMarkFormat                             string `json:"user_mark_format"`
-	PlaceholderCommenter                       string `json:"placeholder_commenter"`
-	CommentCommandTrigger                      string `json:"comment_command_trigger"`
-	CommentRemoveLabelsWhenPRSourceCodeUpdated string `json:"comment_remove_labels_when_pr_source_code_updated"`
-	CommentLabelCommandConflict                string `json:"comment_label_command_conflict"`
-	CommentUpdateLabelFailed                   string `json:"comment_update_label_failed"`
+	SquashCommitLabel                          string `json:"squash_commit_label" required:"true"`
+	UserMarkFormat                             string `json:"user_mark_format" required:"true"`
+	PlaceholderCommenter                       string `json:"placeholder_commenter" required:"true"`
+	CommentCommandTrigger                      string `json:"comment_command_trigger" required:"true"`
+	CommentRemoveLabelsWhenPRSourceCodeUpdated string `json:"comment_remove_labels_when_pr_source_code_updated" required:"true"`
+	CommentLabelCommandConflict                string `json:"comment_label_command_conflict" required:"true"`
+	CommentUpdateLabelFailed                   string `json:"comment_update_label_failed" required:"true"`
 }
 
 // Validate to check the configmap data's validation, returns an error if invalid
@@ -41,7 +43,7 @@ func (c *configuration) Validate() error {
 	// Validate each repo configuration
 	items := c.ConfigItems
 	for i := range items {
-		if err := items[i].validate(); err != nil {
+		if err := items[i].validateRepoConfig(); err != nil {
 			return err
 		}
 
@@ -49,6 +51,38 @@ func (c *configuration) Validate() error {
 		if items[i].CommitsThreshold == 0 {
 			items[i].CommitsThreshold = 1
 		}
+
+		// Set the clear labels rules
+		if items[i].ClearLabelsByRegexp != "" {
+			r, err := regexp.Compile(items[i].ClearLabelsByRegexp)
+			if err != nil {
+				return err
+			}
+			items[i].clearLabelsByRegexp = r
+		}
+	}
+
+	return c.validateGlobalConfig()
+}
+
+func (c *configuration) validateGlobalConfig() error {
+	k := reflect.TypeOf(*c)
+	v := reflect.ValueOf(*c)
+
+	var missing []string
+	n := k.NumField()
+	for i := 0; i < n; i++ {
+		tag := k.Field(i).Tag.Get("required")
+		if len(tag) > 0 {
+			s, _ := v.Field(i).Interface().(string)
+			if s == "" {
+				missing = append(missing, k.Field(i).Tag.Get("json"))
+			}
+		}
+	}
+
+	if len(missing) != 0 {
+		return errors.New("missing the follow config: " + strings.Join(missing, ", "))
 	}
 
 	return nil
@@ -91,8 +125,8 @@ type repoConfig struct {
 	SquashConfig
 }
 
-// validate to check the repoConfig data's validation, returns an error if invalid
-func (c *repoConfig) validate() error {
+// validateRepoConfig to check the repoConfig data's validation, returns an error if invalid
+func (c *repoConfig) validateRepoConfig() error {
 	// If the bot is not configured to monitor any repositories, return an error.
 	if len(c.Repos) == 0 {
 		return errors.New("the repositories configuration can not be empty")
