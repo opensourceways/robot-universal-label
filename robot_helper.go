@@ -74,7 +74,33 @@ func (bot *robot) clearLabelWhenPRSourceCodeUpdated(org, repo, number string, re
 	}
 }
 
-func (bot *robot) addLabels(org, repo, number, commenter string, addLabels []string) {
+func (bot *robot) addIssueLabels(org, repo, number, commenter string, addLabels []string) {
+	if len(addLabels) == 0 {
+		return
+	}
+
+	success := bot.cli.AddIssueLabels(org, repo, number, addLabels)
+	if !success {
+		comment := fmt.Sprintf(bot.cnf.CommentUpdateLabelFailed, commenter, strings.Join(addLabels, ", "))
+		bot.cli.CreateIssueComment(org, repo, number, comment)
+	}
+}
+
+func (bot *robot) removeIssueLabels(org, repo, number, commenter string, removeLabels []string) {
+	if len(removeLabels) == 0 {
+		return
+	}
+	for i := 0; i < len(removeLabels); i++ {
+		removeLabels[i] = url.QueryEscape(removeLabels[i])
+	}
+	success := bot.cli.RemoveIssueLabels(org, repo, number, removeLabels)
+	if !success {
+		comment := fmt.Sprintf(bot.cnf.CommentUpdateLabelFailed, commenter, strings.Join(removeLabels, ", "))
+		bot.cli.CreateIssueComment(org, repo, number, comment)
+	}
+}
+
+func (bot *robot) addPRLabels(org, repo, number, commenter string, addLabels []string) {
 	if len(addLabels) == 0 {
 		return
 	}
@@ -86,11 +112,13 @@ func (bot *robot) addLabels(org, repo, number, commenter string, addLabels []str
 	}
 }
 
-func (bot *robot) removeLabels(org, repo, number, commenter string, removeLabels []string) {
+func (bot *robot) removePRLabels(org, repo, number, commenter string, removeLabels []string) {
 	if len(removeLabels) == 0 {
 		return
 	}
-
+	for i := 0; i < len(removeLabels); i++ {
+		removeLabels[i] = url.QueryEscape(removeLabels[i])
+	}
 	success := bot.cli.RemovePRLabels(org, repo, number, removeLabels)
 	if !success {
 		comment := fmt.Sprintf(bot.cnf.CommentUpdateLabelFailed, commenter, strings.Join(removeLabels, ", "))

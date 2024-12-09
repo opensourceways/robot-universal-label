@@ -32,6 +32,7 @@ type configuration struct {
 	CommentRemoveLabelsWhenPRSourceCodeUpdated string `json:"comment_remove_labels_when_pr_source_code_updated" required:"true"`
 	CommentLabelCommandConflict                string `json:"comment_label_command_conflict" required:"true"`
 	CommentUpdateLabelFailed                   string `json:"comment_update_label_failed" required:"true"`
+	CommentAddNotExistLabel                    string `json:"comment_add_not_exist_label" required:"true"`
 }
 
 // Validate to check the configmap data's validation, returns an error if invalid

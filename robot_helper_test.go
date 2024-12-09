@@ -25,11 +25,16 @@ type mockClient struct {
 	mock.Mock
 	successfulCreatePRComment                bool
 	successfulAddPRLabels                    bool
+	successfulAddIssueLabels                 bool
+	successfulRemoveIssueLabels              bool
 	successfulRemovePRLabels                 bool
 	successfulCheckIfPRCreateEvent           bool
 	successfulCheckIfPRSourceCodeUpdateEvent bool
 	successfulGetPullRequestCommits          bool
 	successfulGetPullRequestLabels           bool
+	successfulGetIssueLabels                 bool
+	successfulGetRepoIssueLabels             bool
+	successfulCreateIssueComment             bool
 	method                                   string
 	commits                                  []client.PRCommit
 	labels                                   []string
@@ -38,6 +43,21 @@ type mockClient struct {
 func (m *mockClient) CreatePRComment(org, repo, number, comment string) bool {
 	m.method = "CreatePRComment"
 	return m.successfulCreatePRComment
+}
+
+func (m *mockClient) CreateIssueComment(org, repo, number, comment string) bool {
+	m.method = "CreateIssueComment"
+	return m.successfulCreateIssueComment
+}
+
+func (m *mockClient) AddIssueLabels(org, repo, number string, labels []string) bool {
+	m.method = "AddIssueLabels"
+	return m.successfulAddIssueLabels
+}
+
+func (m *mockClient) RemoveIssueLabels(org, repo, number string, labels []string) bool {
+	m.method = "RemoveIssueLabels"
+	return m.successfulRemoveIssueLabels
 }
 
 func (m *mockClient) AddPRLabels(org, repo, number string, labels []string) bool {
@@ -70,6 +90,16 @@ func (m *mockClient) GetPullRequestLabels(org, repo, number string) ([]string, b
 	return m.labels, m.successfulGetPullRequestLabels
 }
 
+func (m *mockClient) GetIssueLabels(org, issueID string) ([]string, bool) {
+	m.method = "GetIssueLabels"
+	return m.labels, m.successfulGetIssueLabels
+}
+
+func (m *mockClient) GetRepoIssueLabels(org, repo string) ([]string, bool) {
+	m.method = "GetRepoIssueLabels"
+	return m.labels, m.successfulGetRepoIssueLabels
+}
+
 const (
 	org       = "org1"
 	repo      = "repo1"
@@ -78,7 +108,7 @@ const (
 	label     = "label1"
 )
 
-func TestRemoveLabels(t *testing.T) {
+func TestRemovePRLabels(t *testing.T) {
 
 	mc := new(mockClient)
 	bot := &robot{cli: mc, cnf: &configuration{
@@ -90,21 +120,21 @@ func TestRemoveLabels(t *testing.T) {
 	case1 := "No labels to remove"
 	cli.method = case1
 	// No labels to remove
-	bot.removeLabels(org, repo, number, commenter, []string{})
+	bot.removePRLabels(org, repo, number, commenter, []string{})
 	assert.Equal(t, case1, cli.method)
 
 	case2 := "RemovePRLabels"
 	cli.method = case2
 	cli.successfulRemovePRLabels = true
 	// Successfully remove labels
-	bot.removeLabels(org, repo, number, commenter, []string{label})
+	bot.removePRLabels(org, repo, number, commenter, []string{label})
 	assert.Equal(t, case2, cli.method)
 
 	case3 := "CreatePRComment"
 	cli.method = case3
 	cli.successfulRemovePRLabels = false
 	// Failed to remove labels
-	bot.removeLabels(org, repo, number, commenter, []string{label})
+	bot.removePRLabels(org, repo, number, commenter, []string{label})
 	assert.Equal(t, case3, cli.method)
 
 }
@@ -121,21 +151,21 @@ func TestAddLabels(t *testing.T) {
 	case1 := "No labels to add"
 	cli.method = case1
 	// No labels to add
-	bot.addLabels(org, repo, number, commenter, []string{})
+	bot.addPRLabels(org, repo, number, commenter, []string{})
 	assert.Equal(t, case1, cli.method)
 
 	case2 := "AddPRLabels"
 	cli.method = case2
 	cli.successfulAddPRLabels = true
 	// Successfully add labels
-	bot.addLabels(org, repo, number, commenter, []string{label})
+	bot.addPRLabels(org, repo, number, commenter, []string{label})
 	assert.Equal(t, case2, cli.method)
 
 	case3 := "CreatePRComment"
 	cli.method = case3
 	cli.successfulAddPRLabels = false
 	// Failed to add labels
-	bot.addLabels(org, repo, number, commenter, []string{label})
+	bot.addPRLabels(org, repo, number, commenter, []string{label})
 	assert.Equal(t, case3, cli.method)
 
 }

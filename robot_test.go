@@ -87,7 +87,7 @@ func TestHandleCommentEvent(t *testing.T) {
 	case1 := "No org or repo matched in the config"
 	cli.method = case1
 	// No org or repo matched in the config
-	bot.handleCommentEvent(evt, nil, bot.log)
+	bot.handlePullRequestCommentEvent(evt, nil, bot.log)
 	assert.Equal(t, case1, cli.method)
 
 	evtOrg, evtRepo = "owner2", "repo1"
@@ -96,7 +96,7 @@ func TestHandleCommentEvent(t *testing.T) {
 	case2 := "CreatePRComment"
 	cli.method = case2
 	// the same label is to add and to delete in the command line
-	bot.handleCommentEvent(evt, nil, bot.log)
+	bot.handlePullRequestCommentEvent(evt, nil, bot.log)
 	assert.Equal(t, case2, cli.method)
 
 	evtComment = "/kind bug"
@@ -104,6 +104,6 @@ func TestHandleCommentEvent(t *testing.T) {
 	case3 := "GetPullRequestLabels"
 	cli.labels = []string{"kind/bug"}
 	cli.method = case3
-	bot.handleCommentEvent(evt, nil, bot.log)
+	bot.handlePullRequestCommentEvent(evt, nil, bot.log)
 	assert.Equal(t, case3, cli.method)
 }

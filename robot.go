@@ -28,12 +28,17 @@ import (
 type iClient interface {
 	// CreatePRComment creates a comment for a pull request in a specified organization and repository
 	CreatePRComment(org, repo, number, comment string) (success bool)
+	CreateIssueComment(org, repo, number, comment string) (success bool)
+	AddIssueLabels(org, repo, number string, labels []string) (success bool)
+	RemoveIssueLabels(org, repo, number string, labels []string) (success bool)
 	AddPRLabels(org, repo, number string, labels []string) (success bool)
 	RemovePRLabels(org, repo, number string, labels []string) (success bool)
 	CheckIfPRCreateEvent(evt *client.GenericEvent) (yes bool)
 	CheckIfPRSourceCodeUpdateEvent(evt *client.GenericEvent) (yes bool)
 	GetPullRequestCommits(org, repo, number string) (result []client.PRCommit, success bool)
 	GetPullRequestLabels(org, repo, number string) (result []string, success bool)
+	GetIssueLabels(org, issueID string) (result []string, success bool)
+	GetRepoIssueLabels(org, repo string) (result []string, success bool)
 }
 
 type robot struct {
@@ -53,8 +58,8 @@ func (bot *robot) GetConfigmap() config.Configmap {
 
 func (bot *robot) RegisterEventHandler(p framework.HandlerRegister) {
 	p.RegisterPullRequestHandler(bot.handlePullRequestEvent)
-	p.RegisterIssueCommentHandler(bot.handleCommentEvent)
-	p.RegisterPullRequestCommentHandler(bot.handleCommentEvent)
+	p.RegisterIssueCommentHandler(bot.handleIssueCommentEvent)
+	p.RegisterPullRequestCommentHandler(bot.handlePullRequestCommentEvent)
 }
 
 func (bot *robot) GetLogger() *logrus.Entry {
@@ -79,7 +84,47 @@ func (bot *robot) handlePullRequestEvent(evt *client.GenericEvent, cnf config.Co
 	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, repoCnf, evt)
 }
 
-func (bot *robot) handleCommentEvent(evt *client.GenericEvent, cnf config.Configmap, logger *logrus.Entry) {
+const (
+	issue = "issue"
+	pr    = "pr"
+)
+
+func (bot *robot) handleIssueCommentEvent(evt *client.GenericEvent, cnf config.Configmap, logger *logrus.Entry) {
+	org, repo, number := utils.GetString(evt.Org), utils.GetString(evt.Repo), utils.GetString(evt.Number)
+	repoCnf := bot.cnf.getRepoConfig(org, repo)
+	// If the specified repository not match any repository  in the repoConfig list, it logs the warning and returns
+	if repoCnf == nil {
+		logger.Warningf("no config for the repo: " + org + "/" + repo)
+		return
+	}
+
+	commenter := utils.GetString(evt.Commenter)
+	commenter = strings.ReplaceAll(bot.cnf.UserMarkFormat, bot.cnf.PlaceholderCommenter, commenter)
+	addLabels, removeLabels := matchLabels(utils.GetString(evt.Comment))
+	if conflict, conflictLabels := checkIntersection(addLabels, removeLabels); conflict {
+		comment := fmt.Sprintf(bot.cnf.CommentLabelCommandConflict, commenter, conflictLabels)
+		bot.cli.CreateIssueComment(org, repo, number, comment)
+		return
+	}
+
+	repoLabels, _ := bot.cli.GetRepoIssueLabels(org, repo)
+	repoLabelSet := sets.New[string](repoLabels...)
+	addLabelSet := sets.New[string](addLabels...)
+	missingLabels := addLabelSet.Difference(repoLabelSet).UnsortedList()
+	if len(missingLabels) != 0 {
+		bot.cli.CreateIssueComment(org, repo, number,
+			fmt.Sprintf(bot.cnf.CommentAddNotExistLabel, commenter, strings.Join(missingLabels, ", ")))
+		return
+	}
+
+	removeLabelSet := sets.New[string](removeLabels...)
+	issueLabels, _ := bot.cli.GetIssueLabels(org, utils.GetString(evt.ID))
+	issueLabelSet := sets.New[string](issueLabels...)
+	bot.addIssueLabels(org, repo, number, commenter, addLabelSet.Difference(issueLabelSet).UnsortedList())
+	bot.removeIssueLabels(org, repo, number, commenter, issueLabelSet.Intersection(removeLabelSet).UnsortedList())
+}
+
+func (bot *robot) handlePullRequestCommentEvent(evt *client.GenericEvent, cnf config.Configmap, logger *logrus.Entry) {
 	org, repo, number := utils.GetString(evt.Org), utils.GetString(evt.Repo), utils.GetString(evt.Number)
 	repoCnf := bot.cnf.getRepoConfig(org, repo)
 	// If the specified repository not match any repository  in the repoConfig list, it logs the warning and returns
@@ -97,8 +142,19 @@ func (bot *robot) handleCommentEvent(evt *client.GenericEvent, cnf config.Config
 		return
 	}
 
+	repoLabels, _ := bot.cli.GetRepoIssueLabels(org, repo)
+	repoLabelSet := sets.New[string](repoLabels...)
+	addLabelSet := sets.New[string](addLabels...)
+	missingLabels := addLabelSet.Difference(repoLabelSet).UnsortedList()
+	if len(missingLabels) != 0 {
+		bot.cli.CreatePRComment(org, repo, number,
+			fmt.Sprintf(bot.cnf.CommentAddNotExistLabel, commenter, strings.Join(missingLabels, ", ")))
+		return
+	}
+
+	removeLabelSet := sets.New[string](removeLabels...)
 	prLabels, _ := bot.cli.GetPullRequestLabels(org, repo, number)
 	prLabelSet := sets.New[string](prLabels...)
-	bot.addLabels(org, repo, number, commenter, sets.New[string](addLabels...).Difference(prLabelSet).UnsortedList())
-	bot.removeLabels(org, repo, number, commenter, prLabelSet.Intersection(sets.New[string](removeLabels...)).UnsortedList())
+	bot.addPRLabels(org, repo, number, commenter, addLabelSet.Difference(prLabelSet).UnsortedList())
+	bot.removePRLabels(org, repo, number, commenter, prLabelSet.Intersection(removeLabelSet).UnsortedList())
 }
