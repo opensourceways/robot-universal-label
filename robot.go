@@ -39,6 +39,7 @@ type iClient interface {
 	GetPullRequestLabels(org, repo, number string) (result []string, success bool)
 	GetIssueLabels(org, issueID string) (result []string, success bool)
 	GetRepoIssueLabels(org, repo string) (result []string, success bool)
+	CheckPermission(org, repo, username string) (pass, success bool)
 }
 
 type robot struct {
@@ -111,7 +112,8 @@ func (bot *robot) handleIssueCommentEvent(evt *client.GenericEvent, cnf config.C
 	repoLabelSet := sets.New[string](repoLabels...)
 	addLabelSet := sets.New[string](addLabels...)
 	missingLabels := addLabelSet.Difference(repoLabelSet).UnsortedList()
-	if len(missingLabels) != 0 {
+	pass, _ := bot.cli.CheckPermission(org, repo, utils.GetString(evt.Commenter))
+	if !pass && len(missingLabels) != 0 {
 		bot.cli.CreateIssueComment(org, repo, number,
 			fmt.Sprintf(bot.cnf.CommentAddNotExistLabel, commenter, strings.Join(missingLabels, ", ")))
 		return
@@ -146,7 +148,8 @@ func (bot *robot) handlePullRequestCommentEvent(evt *client.GenericEvent, cnf co
 	repoLabelSet := sets.New[string](repoLabels...)
 	addLabelSet := sets.New[string](addLabels...)
 	missingLabels := addLabelSet.Difference(repoLabelSet).UnsortedList()
-	if len(missingLabels) != 0 {
+	pass, _ := bot.cli.CheckPermission(org, repo, utils.GetString(evt.Commenter))
+	if !pass && len(missingLabels) != 0 {
 		bot.cli.CreatePRComment(org, repo, number,
 			fmt.Sprintf(bot.cnf.CommentAddNotExistLabel, commenter, strings.Join(missingLabels, ", ")))
 		return

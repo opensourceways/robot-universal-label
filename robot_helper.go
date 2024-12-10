@@ -47,7 +47,7 @@ func (bot *robot) clearLabelWhenPRSourceCodeUpdated(org, repo, number string, re
 	}
 
 	clearLabelSet := sets.New[string](repoCnf.ClearLabels...)
-	if clearLabelSet.Len() == 0 && repoCnf.clearLabelsByRegexp == nil {
+	if clearLabelSet.Len() == 0 && repoCnf.ClearLabelsRegexp == nil {
 		return
 	}
 
@@ -57,7 +57,7 @@ func (bot *robot) clearLabelWhenPRSourceCodeUpdated(org, repo, number string, re
 	}
 
 	for _, l := range prLabels {
-		if repoCnf.clearLabelsByRegexp != nil && repoCnf.clearLabelsByRegexp.MatchString(l) {
+		if repoCnf.ClearLabelsRegexp != nil && repoCnf.ClearLabelsRegexp.MatchString(l) {
 			clearLabelSet.Insert(l)
 		}
 	}

@@ -27,3 +27,4 @@ comment_command_trigger: "### Label Command Manual \n\nBecause of the network pr
 comment_remove_labels_when_pr_source_code_updated: "### Notification  \n\nThis pull request source branch has changed, so removes the following label(s): %s."
 comment_label_command_conflict: "### Label Command Feedback \n\n %s , the comment that add and delete a same label, please check it. :pray: "
 comment_update_label_failed: "### Label Command Feedback \n\n %s, Because of the label update failed, please comment once again. :pray: "
+comment_add_not_exist_label: "### Label Command Feedback \n\n %s, Because of the repository doesn't have the label(s) `%s`, it cannot be added. :pray: "

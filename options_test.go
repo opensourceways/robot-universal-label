@@ -17,6 +17,7 @@ import (
 	"flag"
 	"github.com/opensourceways/server-common-lib/utils"
 	"github.com/stretchr/testify/assert"
+	"regexp"
 	"testing"
 )
 
@@ -75,6 +76,13 @@ func TestGatherOptions(t *testing.T) {
 	for i := range want.ConfigItems {
 		if want.ConfigItems[i].CommitsThreshold == 0 {
 			want.ConfigItems[i].CommitsThreshold = 1
+		}
+		if want.ConfigItems[i].ClearLabelsByRegexp != "" {
+			r, err := regexp.Compile(want.ConfigItems[i].ClearLabelsByRegexp)
+			if err != nil {
+				break
+			}
+			want.ConfigItems[i].ClearLabelsRegexp = r
 		}
 	}
 	assert.Equal(t, *want, *got)

@@ -50,7 +50,7 @@ func TestValidate(t *testing.T) {
 			},
 			[2]error{nil, errors.New("missing the follow config: squash_commit_label, user_mark_format, " +
 				"placeholder_commenter, comment_command_trigger, comment_remove_labels_when_pr_source_code_updated, " +
-				"comment_label_command_conflict, comment_update_label_failed")},
+				"comment_label_command_conflict, comment_update_label_failed, comment_add_not_exist_label")},
 		},
 		{
 			"no valid org or repo in the config",

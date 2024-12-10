@@ -59,7 +59,7 @@ func (c *configuration) Validate() error {
 			if err != nil {
 				return err
 			}
-			items[i].clearLabelsByRegexp = r
+			items[i].ClearLabelsRegexp = r
 		}
 	}
 
@@ -116,8 +116,8 @@ type repoConfig struct {
 
 	// ClearLabelsByRegexp specifies a expression which can match a list of labels that
 	// should be removed when the codes of PR are changed.
-	ClearLabelsByRegexp string `json:"clear_labels_by_regexp,omitempty"`
-	clearLabelsByRegexp *regexp.Regexp
+	ClearLabelsByRegexp string         `json:"clear_labels_by_regexp,omitempty"`
+	ClearLabelsRegexp   *regexp.Regexp `json:"-,omitempty"`
 
 	// AllowCreatingLabelsByCollaborator is a tag which will lead to create unavailable labels
 	// by collaborator if it is true.

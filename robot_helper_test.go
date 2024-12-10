@@ -35,6 +35,8 @@ type mockClient struct {
 	successfulGetIssueLabels                 bool
 	successfulGetRepoIssueLabels             bool
 	successfulCreateIssueComment             bool
+	successfulCheckPermission                bool
+	permission                               bool
 	method                                   string
 	commits                                  []client.PRCommit
 	labels                                   []string
@@ -98,6 +100,11 @@ func (m *mockClient) GetIssueLabels(org, issueID string) ([]string, bool) {
 func (m *mockClient) GetRepoIssueLabels(org, repo string) ([]string, bool) {
 	m.method = "GetRepoIssueLabels"
 	return m.labels, m.successfulGetRepoIssueLabels
+}
+
+func (m *mockClient) CheckPermission(org, repo, username string) (bool, bool) {
+	m.method = "GetRepoIssueLabels"
+	return m.permission, m.successfulCheckPermission
 }
 
 const (
