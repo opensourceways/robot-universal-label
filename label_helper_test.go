@@ -21,7 +21,7 @@ import (
 
 const (
 	testConstLabelKindBug      = "kind/bug"
-	testConstLabelKindQuestion = "kind/question "
+	testConstLabelKindQuestion = "kind/question"
 	testConstLabelKindTask     = "kind/task"
 	testConstLabelPriorityLow  = "priority/low"
 )
