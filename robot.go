@@ -67,12 +67,16 @@ func (bot *robot) GetLogger() *logrus.Entry {
 	return bot.log
 }
 
+const (
+	logWarningMessage = "no config for the repo: "
+)
+
 func (bot *robot) handlePullRequestEvent(evt *client.GenericEvent, cnf config.Configmap, logger *logrus.Entry) {
 	org, repo, number := utils.GetString(evt.Org), utils.GetString(evt.Repo), utils.GetString(evt.Number)
 	repoCnf := bot.cnf.getRepoConfig(org, repo)
 	// If the specified repository not match any repository  in the repoConfig list, it logs the warning and returns
 	if repoCnf == nil {
-		logger.Warningf("no config for the repo: " + org + "/" + repo)
+		logger.Warning(logWarningMessage + org + "/" + repo)
 		return
 	}
 
@@ -85,17 +89,12 @@ func (bot *robot) handlePullRequestEvent(evt *client.GenericEvent, cnf config.Co
 	bot.clearLabelWhenPRSourceCodeUpdated(org, repo, number, repoCnf, evt)
 }
 
-const (
-	issue = "issue"
-	pr    = "pr"
-)
-
 func (bot *robot) handleIssueCommentEvent(evt *client.GenericEvent, cnf config.Configmap, logger *logrus.Entry) {
 	org, repo, number := utils.GetString(evt.Org), utils.GetString(evt.Repo), utils.GetString(evt.Number)
 	repoCnf := bot.cnf.getRepoConfig(org, repo)
 	// If the specified repository not match any repository  in the repoConfig list, it logs the warning and returns
 	if repoCnf == nil {
-		logger.Warningf("no config for the repo: " + org + "/" + repo)
+		logger.Warning(logWarningMessage + org + "/" + repo)
 		return
 	}
 
@@ -131,7 +130,7 @@ func (bot *robot) handlePullRequestCommentEvent(evt *client.GenericEvent, cnf co
 	repoCnf := bot.cnf.getRepoConfig(org, repo)
 	// If the specified repository not match any repository  in the repoConfig list, it logs the warning and returns
 	if repoCnf == nil {
-		logger.Warningf("no config for the repo: " + org + "/" + repo)
+		logger.Warning(logWarningMessage + org + "/" + repo)
 		return
 	}
 

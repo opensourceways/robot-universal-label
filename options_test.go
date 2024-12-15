@@ -28,6 +28,7 @@ const (
 	commandTokenFilePrefix  = "--token-path="
 	commandDelToken         = "--del-token=false"
 	commandHandlePath       = "--handle-path=gitcode-hook"
+	configYaml              = "config.yaml"
 )
 
 func TestGatherOptions(t *testing.T) {
@@ -35,7 +36,7 @@ func TestGatherOptions(t *testing.T) {
 	args := []string{
 		commandExecFile,
 		commandPort,
-		commandConfigFilePrefix + findTestdata(t, "config.yaml"),
+		commandConfigFilePrefix + findTestdata(t, configYaml),
 	}
 	opt := new(robotOptions)
 	_, _ = opt.gatherOptions(flag.NewFlagSet(args[0], flag.ExitOnError), args[1:]...)
@@ -54,7 +55,7 @@ func TestGatherOptions(t *testing.T) {
 
 	args = []string{
 		commandExecFile,
-		commandConfigFilePrefix + findTestdata(t, "config.yaml"),
+		commandConfigFilePrefix + findTestdata(t, configYaml),
 		commandHandlePath,
 		commandTokenFilePrefix + "/token1",
 		commandDelToken,
@@ -72,7 +73,7 @@ func TestGatherOptions(t *testing.T) {
 	assert.Equal(t, false, opt.interrupt)
 	assert.Equal(t, "gitcode-hook", opt.service.HandlePath)
 	want := &configuration{}
-	_ = utils.LoadFromYaml(findTestdata(t, "config.yaml"), want)
+	_ = utils.LoadFromYaml(findTestdata(t, configYaml), want)
 	for i := range want.ConfigItems {
 		if want.ConfigItems[i].CommitsThreshold == 0 {
 			want.ConfigItems[i].CommitsThreshold = 1

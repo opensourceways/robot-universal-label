@@ -26,7 +26,7 @@ func botHelper(t *testing.T) (*robot, *mockClient) {
 
 	logger := framework.NewLogger().WithField("component", component)
 	cnf := &configuration{}
-	err := utils.LoadFromYaml(findTestdata(t, "config.yaml"), cnf)
+	err := utils.LoadFromYaml(findTestdata(t, configYaml), cnf)
 	assert.Equal(t, nil, err)
 	bot := &robot{cli: mc, cnf: cnf, log: logger}
 	cli, ok := bot.cli.(*mockClient)

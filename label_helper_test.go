@@ -19,6 +19,13 @@ import (
 	"testing"
 )
 
+const (
+	testConstLabelKindBug      = "kind/bug"
+	testConstLabelKindQuestion = "kind/question "
+	testConstLabelKindTask     = "kind/task"
+	testConstLabelPriorityLow  = "priority/low"
+)
+
 func TestMatchLabelFromCommentLine(t *testing.T) {
 	type args struct {
 		commandLine string
@@ -59,7 +66,7 @@ func TestMatchLabelFromCommentLine(t *testing.T) {
 				"/kind bug",
 				regexpCommentByAnyoneToAddLabel,
 			},
-			"kind/bug",
+			testConstLabelKindBug,
 		},
 		{
 			"a correct command line to add 'priority' label, it contains a tab",
@@ -107,7 +114,7 @@ func TestMatchLabelFromCommentLine(t *testing.T) {
 				"/remove-priority\tlow",
 				regexpCommentByAnyoneRemoveLabel,
 			},
-			"priority/low",
+			testConstLabelPriorityLow,
 		},
 	}
 	for i := range testCases {
@@ -146,27 +153,27 @@ func TestMatchLabels(t *testing.T) {
 		{
 			"a correct command line to add 'kind' label",
 			"/kind question ",
-			[2][]string{{"kind/question"}, nil},
+			[2][]string{{testConstLabelKindQuestion}, nil},
 		},
 		{
 			"a correct command line to add multi-'kind' label",
 			"/kind question \n /kind help-wanted",
-			[2][]string{{"kind/question", "kind/help-wanted"}, nil},
+			[2][]string{{testConstLabelKindQuestion, "kind/help-wanted"}, nil},
 		},
 		{
 			"a correct command line to add 'kind' and 'sig' label",
 			"/kind question \n /sig release-ROS",
-			[2][]string{{"kind/question", "sig/release-ROS"}, nil},
+			[2][]string{{testConstLabelKindQuestion, "sig/release-ROS"}, nil},
 		},
 		{
 			"a correct command line to update 'kind' label",
 			"/remove-kind question \n /kind bug",
-			[2][]string{{"kind/bug"}, {"kind/question"}},
+			[2][]string{{testConstLabelKindBug}, {testConstLabelKindQuestion}},
 		},
 		{
 			"a correct command line to remove 'kind' and 'priority' label",
 			"/remove-kind bug \n /remove-priority low",
-			[2][]string{nil, {"kind/bug", "priority/low"}},
+			[2][]string{nil, {testConstLabelKindBug, testConstLabelPriorityLow}},
 		},
 	}
 	for i := range testCases {
@@ -191,32 +198,32 @@ func TestCheckIntersection(t *testing.T) {
 	}{
 		{
 			"add 1 label",
-			[2][]string{{"kind/task"}, nil},
+			[2][]string{{testConstLabelKindTask}, nil},
 			result{false, ""},
 		},
 		{
 			"add 2 label",
-			[2][]string{{"kind/bug", "priority/low"}, nil},
+			[2][]string{{testConstLabelKindBug, testConstLabelPriorityLow}, nil},
 			result{false, ""},
 		},
 		{
 			"remove 2 label",
-			[2][]string{nil, {"kind/bug", "priority/low"}},
+			[2][]string{nil, {testConstLabelKindBug, testConstLabelPriorityLow}},
 			result{false, ""},
 		},
 		{
 			"add 1 label, remove 1 label",
-			[2][]string{{"kind/bug"}, {"kind/task"}},
+			[2][]string{{testConstLabelKindBug}, {testConstLabelKindTask}},
 			result{false, ""},
 		},
 		{
 			"add 1 label, remove 1 label",
-			[2][]string{{"kind/task"}, {"kind/task"}},
-			result{true, "kind/task"},
+			[2][]string{{testConstLabelKindTask}, {testConstLabelKindTask}},
+			result{true, testConstLabelKindTask},
 		},
 		{
 			"add 2 label, remove 2 label",
-			[2][]string{{"kind/task", "kind/CVE"}, {"kind/task", "kind/cve"}},
+			[2][]string{{testConstLabelKindTask, "kind/CVE"}, {testConstLabelKindTask, "kind/cve"}},
 			result{true, "kind/cve**, **kind/task"},
 		},
 	}

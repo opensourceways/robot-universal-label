@@ -72,7 +72,7 @@ func TestValidate(t *testing.T) {
 			"a correct config",
 			args{
 				&configuration{},
-				"config.yaml",
+				configYaml,
 			},
 			[2]error{nil, nil},
 		},
@@ -96,7 +96,7 @@ func TestGetRepoConfig(t *testing.T) {
 	got := cnf.getRepoConfig("owner1", "")
 	assert.Equal(t, (*repoConfig)(nil), got)
 
-	err := utils.LoadFromYaml(findTestdata(t, "config.yaml"), cnf)
+	err := utils.LoadFromYaml(findTestdata(t, configYaml), cnf)
 	assert.Equal(t, nil, err)
 
 	testCases := []struct {
